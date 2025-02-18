@@ -49,4 +49,25 @@ impl WGPUState {
             queue,
         }
     }
+
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        // 1. Obtener la textura actual (frame)
+        let output = self.surface.get_current_texture()?;
+        // 2. Crear la vista de la textura
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        // 3. Crear un command encoder
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
+        
+        // 4. Iniciar un render pass (se usa un bloque para que render_pass se suelte al final)
+        todo!();
+        
+        // 5. Enviar los comandos a la GPU y presentar el frame
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+        
+        Ok(())
+    }
+    
 }

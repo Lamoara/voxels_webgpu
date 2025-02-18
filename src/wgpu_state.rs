@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use wgpu::InstanceDescriptor;
+use wgpu::{InstanceDescriptor, LoadOp, RenderPassColorAttachment, RenderPassDescriptor, StoreOp};
 use winit::window::Window;
 
 pub struct WGPUState {
@@ -61,7 +61,22 @@ impl WGPUState {
         });
         
         // 4. Iniciar un render pass (se usa un bloque para que render_pass se suelte al final)
-        todo!();
+        {
+            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor{
+                label: Some("Render Pass"),
+                color_attachments: &[Some(RenderPassColorAttachment{ 
+                    view: &view, 
+                    resolve_target: None, 
+                    ops:wgpu::Operations {
+                        load: LoadOp::Clear(wgpu::Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }),
+                        store: StoreOp::Store,
+                    }, 
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+        }
         
         // 5. Enviar los comandos a la GPU y presentar el frame
         self.queue.submit(std::iter::once(encoder.finish()));

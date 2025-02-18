@@ -26,5 +26,7 @@ impl ApplicationHandler for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             _ => (),
         }
+
+        self.state.as_mut().expect("State not generated").render().unwrap();
     }
 }

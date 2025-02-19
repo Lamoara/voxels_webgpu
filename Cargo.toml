@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 pollster = "0.4.0"
-wgpu = "24.0.1"
+wgpu = {version = "24.0.1", features = []}
 winit = "0.30.9"

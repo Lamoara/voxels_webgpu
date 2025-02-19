@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{borrow::Cow, fs::{self}, sync::Arc};
 
-use wgpu::{InstanceDescriptor, LoadOp, RenderPassColorAttachment, RenderPassDescriptor, StoreOp};
+use wgpu::{Device, InstanceDescriptor, LoadOp, PipelineCompilationOptions, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, StoreOp, VertexState};
 use winit::window::Window;
 
 pub struct WGPUState {
@@ -9,6 +9,7 @@ pub struct WGPUState {
     surface_config: wgpu::SurfaceConfiguration,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    pipeline: RenderPipeline,
 }
 
 impl WGPUState {
@@ -41,13 +42,48 @@ impl WGPUState {
             .expect("No default config in surface");
         surface.configure(&device, &surface_config);
 
+        let pipeline = Self::create_pipeline(&device, "");
+
         Self {
             window: window_arc,
             surface,
             surface_config,
             device,
             queue,
+            pipeline,
         }
+    }
+
+    fn create_pipeline(device: &Device, vertex_dir: &str) -> RenderPipeline
+    {
+        let shader_str = fs::read_to_string(vertex_dir).unwrap();
+        let vertex_shader = device.create_shader_module(ShaderModuleDescriptor{
+            label: Some("Vertex Shader"),
+            source: ShaderSource::Wgsl(Cow::from(shader_str))
+        });
+
+        let vertex_state = VertexState{
+            module: &vertex_shader,
+            entry_point: Some("main"),
+            compilation_options: PipelineCompilationOptions{
+                constants: todo!(),
+                zero_initialize_workgroup_memory: todo!(),
+            },
+            buffers: todo!(),
+        };
+
+
+        device.create_render_pipeline(&RenderPipelineDescriptor{
+            label: Some("Render Pipeline"),
+            layout: None,
+            vertex: vertex_state,
+            primitive: todo!(),
+            depth_stencil: todo!(),
+            multisample: todo!(),
+            fragment: todo!(),
+            multiview: todo!(),
+            cache: todo!(),
+        })
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

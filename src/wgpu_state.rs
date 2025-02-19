@@ -1,7 +1,9 @@
 use std::{borrow::Cow, fs::{self}, sync::Arc};
 
-use wgpu::{Device, InstanceDescriptor, LoadOp, PipelineCompilationOptions, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, StoreOp, VertexState};
+use wgpu::{Device, Face, FrontFace, IndexFormat, InstanceDescriptor, LoadOp, MultisampleState, PipelineCompilationOptions, PolygonMode, PrimitiveState, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, StoreOp, VertexState};
 use winit::window::Window;
+
+use crate::shader_config::ShaderConfig;
 
 pub struct WGPUState {
     window: Arc<Window>,
@@ -54,22 +56,22 @@ impl WGPUState {
         }
     }
 
-    fn create_pipeline(device: &Device, vertex_dir: &str) -> RenderPipeline
+    fn create_pipeline(device: &Device, vertex_config: &ShaderConfig) -> RenderPipeline
     {
-        let shader_str = fs::read_to_string(vertex_dir).unwrap();
+        let shader_str = fs::read_to_string(vertex_config.path()).unwrap();
         let vertex_shader = device.create_shader_module(ShaderModuleDescriptor{
-            label: Some("Vertex Shader"),
+            label: Some(vertex_config.label()),
             source: ShaderSource::Wgsl(Cow::from(shader_str))
         });
 
         let vertex_state = VertexState{
             module: &vertex_shader,
-            entry_point: Some("main"),
+            entry_point: Some(vertex_config.entry_point()),
             compilation_options: PipelineCompilationOptions{
-                constants: todo!(),
-                zero_initialize_workgroup_memory: todo!(),
+                constants: vertex_config.constants(),
+                zero_initialize_workgroup_memory: vertex_config.zero_initialize_workgrouo_memory(),
             },
-            buffers: todo!(),
+            buffers: &[],
         };
 
 
@@ -77,12 +79,24 @@ impl WGPUState {
             label: Some("Render Pipeline"),
             layout: None,
             vertex: vertex_state,
-            primitive: todo!(),
-            depth_stencil: todo!(),
-            multisample: todo!(),
-            fragment: todo!(),
-            multiview: todo!(),
-            cache: todo!(),
+            primitive: PrimitiveState{
+                topology: PrimitiveTopology::TriangleList,
+                strip_index_format: Some(IndexFormat::Uint32),
+                front_face: FrontFace::Cw,
+                cull_mode: Some(Face::Back),
+                unclipped_depth: false,
+                polygon_mode: PolygonMode::Fill,
+                conservative: true,
+            },
+            depth_stencil: None,
+            multisample: MultisampleState{
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            fragment: None,
+            multiview: None,
+            cache: None,
         })
     }
 

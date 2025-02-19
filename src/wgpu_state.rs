@@ -1,6 +1,6 @@
-use std::{borrow::Cow, fs::{self}, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, fs::{self}, sync::Arc};
 
-use wgpu::{Device, Face, FrontFace, IndexFormat, InstanceDescriptor, LoadOp, MultisampleState, PipelineCompilationOptions, PolygonMode, PrimitiveState, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, StoreOp, VertexState};
+use wgpu::{Device, Face, FragmentState, FrontFace, IndexFormat, InstanceDescriptor, LoadOp, MultisampleState, PipelineCompilationOptions, PolygonMode, PrimitiveState, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, StoreOp, VertexState};
 use winit::window::Window;
 
 use crate::shader_config::ShaderConfig;
@@ -33,7 +33,7 @@ impl WGPUState {
         let (device, queue) = pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
-                required_features: wgpu::Features::empty(),
+                required_features: wgpu::Features::CONSERVATIVE_RASTERIZATION,
                 required_limits: wgpu::Limits::default(),
                 memory_hints: wgpu::MemoryHints::default(),
             },
@@ -44,7 +44,23 @@ impl WGPUState {
             .expect("No default config in surface");
         surface.configure(&device, &surface_config);
 
-        let pipeline = Self::create_pipeline(&device, "");
+        let vertex_config = ShaderConfig{
+            path: r"shaders\vertex.wgsl",
+            label: r"Vertex Shader",
+            entry_point: r"main",
+            constants: HashMap::new(),
+            zero_initialize_workgrouo_memory: true,
+        };
+
+        let fragment_config = ShaderConfig{
+            path: r"shaders\fragment.wgsl",
+            label: r"Fragment Shader",
+            entry_point: r"main",
+            constants: HashMap::new(),
+            zero_initialize_workgrouo_memory: false,
+        };
+
+        let pipeline = Self::create_pipeline(&device, &vertex_config, &fragment_config);
 
         Self {
             window: window_arc,
@@ -56,22 +72,42 @@ impl WGPUState {
         }
     }
 
-    fn create_pipeline(device: &Device, vertex_config: &ShaderConfig) -> RenderPipeline
+    fn create_pipeline(device: &Device, vertex_config: &ShaderConfig, fragment_config: &ShaderConfig) -> RenderPipeline
     {
-        let shader_str = fs::read_to_string(vertex_config.path()).unwrap();
+        let shader_str = fs::read_to_string(vertex_config.path).unwrap();
         let vertex_shader = device.create_shader_module(ShaderModuleDescriptor{
-            label: Some(vertex_config.label()),
+            label: Some(vertex_config.label),
             source: ShaderSource::Wgsl(Cow::from(shader_str))
         });
 
         let vertex_state = VertexState{
             module: &vertex_shader,
-            entry_point: Some(vertex_config.entry_point()),
+            entry_point: Some(vertex_config.entry_point),
             compilation_options: PipelineCompilationOptions{
-                constants: vertex_config.constants(),
-                zero_initialize_workgroup_memory: vertex_config.zero_initialize_workgrouo_memory(),
+                constants: &vertex_config.constants,
+                zero_initialize_workgroup_memory: vertex_config.zero_initialize_workgrouo_memory,
             },
             buffers: &[],
+        };
+
+        let shader_str = fs::read_to_string(fragment_config.path).unwrap();
+        let fragment_shader = device.create_shader_module(ShaderModuleDescriptor{
+            label: Some(fragment_config.label),
+            source: ShaderSource::Wgsl(Cow::from(shader_str))
+        });
+
+        let fragment_state = FragmentState{
+            module: &fragment_shader,
+            entry_point: Some(fragment_config.entry_point),
+            compilation_options: PipelineCompilationOptions{
+                constants: &fragment_config.constants,
+                zero_initialize_workgroup_memory: fragment_config.zero_initialize_workgrouo_memory,
+            },
+            targets: &[Some(wgpu::ColorTargetState {
+                format: wgpu::TextureFormat::Bgra8UnormSrgb, // Usa el mismo formato que la superficie
+                blend: Some(wgpu::BlendState::REPLACE),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
         };
 
 
@@ -79,22 +115,10 @@ impl WGPUState {
             label: Some("Render Pipeline"),
             layout: None,
             vertex: vertex_state,
-            primitive: PrimitiveState{
-                topology: PrimitiveTopology::TriangleList,
-                strip_index_format: Some(IndexFormat::Uint32),
-                front_face: FrontFace::Cw,
-                cull_mode: Some(Face::Back),
-                unclipped_depth: false,
-                polygon_mode: PolygonMode::Fill,
-                conservative: true,
-            },
+            primitive: PrimitiveState::default(),
             depth_stencil: None,
-            multisample: MultisampleState{
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            fragment: None,
+            multisample: MultisampleState::default(),
+            fragment: Some(fragment_state),
             multiview: None,
             cache: None,
         })
@@ -126,6 +150,8 @@ impl WGPUState {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
+
+            render_pass.set_pipeline(&self.pipeline);
         }
         
         // 5. Enviar los comandos a la GPU y presentar el frame

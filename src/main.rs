@@ -4,7 +4,6 @@ use winit::event_loop::EventLoop;
 mod wgpu_state;
 mod app;
 mod shader_config;
-mod pipeline_config;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();

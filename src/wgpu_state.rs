@@ -1,9 +1,9 @@
 use std::{borrow::Cow, collections::HashMap, fs::{self}, sync::Arc};
 
-use wgpu::{Device, Face, FragmentState, FrontFace, IndexFormat, InstanceDescriptor, LoadOp, MultisampleState, PipelineCompilationOptions, PolygonMode, PrimitiveState, PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, StoreOp, VertexState};
+use wgpu::{util::DeviceExt, Buffer, BufferUsages, Device, FragmentState, InstanceDescriptor, LoadOp, MultisampleState, PipelineCompilationOptions, PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, StoreOp, SurfaceConfiguration, VertexState};
 use winit::window::Window;
 
-use crate::shader_config::ShaderConfig;
+use crate::{shader_config::ShaderConfig, vertex::Vertex};
 
 pub struct WGPUState {
     window: Arc<Window>,
@@ -12,7 +12,16 @@ pub struct WGPUState {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
 }
+
+
+const VERTICES: &[Vertex] = &[
+    Vertex { position: [ 0.0,  0.5, 0.0], color: [1.0, 0.0, 0.0] }, // Arriba (Rojo)
+    Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] }, // Izquierda (Verde)
+    Vertex { position: [ 0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] }, // Derecha (Azul)
+];
+
 
 impl WGPUState {
     pub fn new(window_arc: Arc<Window>) -> Self {
@@ -60,7 +69,8 @@ impl WGPUState {
             zero_initialize_workgrouo_memory: false,
         };
 
-        let pipeline = Self::create_pipeline(&device, &vertex_config, &fragment_config);
+        let pipeline = Self::create_pipeline(&device, &surface_config, &vertex_config, &fragment_config);
+        let vertex_buffer = Self::create_vertex_buffer(&device, &queue);
 
         Self {
             window: window_arc,
@@ -69,10 +79,11 @@ impl WGPUState {
             device,
             queue,
             pipeline,
+            vertex_buffer,
         }
     }
 
-    fn create_pipeline(device: &Device, vertex_config: &ShaderConfig, fragment_config: &ShaderConfig) -> RenderPipeline
+    fn create_pipeline(device: &Device, surface: &SurfaceConfiguration, vertex_config: &ShaderConfig, fragment_config: &ShaderConfig) -> RenderPipeline
     {
         let shader_str = fs::read_to_string(vertex_config.path).unwrap();
         let vertex_shader = device.create_shader_module(ShaderModuleDescriptor{
@@ -87,7 +98,7 @@ impl WGPUState {
                 constants: &vertex_config.constants,
                 zero_initialize_workgroup_memory: vertex_config.zero_initialize_workgrouo_memory,
             },
-            buffers: &[],
+            buffers: &[Vertex::layout()],
         };
 
         let shader_str = fs::read_to_string(fragment_config.path).unwrap();
@@ -104,7 +115,7 @@ impl WGPUState {
                 zero_initialize_workgroup_memory: fragment_config.zero_initialize_workgrouo_memory,
             },
             targets: &[Some(wgpu::ColorTargetState {
-                format: wgpu::TextureFormat::Bgra8UnormSrgb, // Usa el mismo formato que la superficie
+                format: surface.format,
                 blend: Some(wgpu::BlendState::REPLACE),
                 write_mask: wgpu::ColorWrites::ALL,
             })],
@@ -142,7 +153,7 @@ impl WGPUState {
                     view: &view, 
                     resolve_target: None, 
                     ops:wgpu::Operations {
-                        load: LoadOp::Clear(wgpu::Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }),
+                        load: LoadOp::Clear(wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }),
                         store: StoreOp::Store,
                     }, 
                 })],
@@ -152,6 +163,8 @@ impl WGPUState {
             });
 
             render_pass.set_pipeline(&self.pipeline);
+                    render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        render_pass.draw(0..3, 0..1);
         }
         
         // 5. Enviar los comandos a la GPU y presentar el frame
@@ -160,5 +173,16 @@ impl WGPUState {
         
         Ok(())
     }
+
+    fn create_vertex_buffer(device: &Device, queue: &Queue) -> Buffer {
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: BufferUsages::VERTEX,
+        });
+
+        vertex_buffer
+    }
+
     
 }

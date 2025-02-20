@@ -20,6 +20,9 @@ const VERTICES: &[Vertex] = &[
     Vertex { position: [ 0.0,  0.5, 0.0], color: [1.0, 0.0, 0.0] }, // Arriba (Rojo)
     Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] }, // Izquierda (Verde)
     Vertex { position: [ 0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] }, // Derecha (Azul)
+    Vertex { position: [ 0.0, -0.8, 0.0], color: [0.0, 0.0, 1.0] }, // Derecha (Azul)
+    Vertex { position: [ 0.5, -0.9, 0.0], color: [0.0, 0.0, 1.0] }, // Derecha (Azul)
+    Vertex { position: [ 0.5, 0.8, 0.0], color: [0.0, 0.0, 1.0] }, // Derecha (Azul)
 ];
 
 
@@ -164,7 +167,7 @@ impl WGPUState {
 
             render_pass.set_pipeline(&self.pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..3, 0..1);
+            render_pass.draw(0..6, 0..1);
         }
         
         // 5. Enviar los comandos a la GPU y presentar el frame

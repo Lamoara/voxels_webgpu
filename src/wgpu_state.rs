@@ -163,8 +163,8 @@ impl WGPUState {
             });
 
             render_pass.set_pipeline(&self.pipeline);
-                    render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        render_pass.draw(0..3, 0..1);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.draw(0..3, 0..1);
         }
         
         // 5. Enviar los comandos a la GPU y presentar el frame

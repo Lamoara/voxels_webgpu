@@ -1,7 +1,5 @@
 use std::{collections::HashMap, hash::RandomState};
 
-use wgpu::ShaderSource;
-
 pub struct ShaderConfig<'a> {
     pub path: &'a str,
     pub label: &'a str,

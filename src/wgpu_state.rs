@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap, fs::{self}, sync::Arc};
 use wgpu::{util::DeviceExt, Buffer, BufferUsages, Device, FragmentState, InstanceDescriptor, LoadOp, MultisampleState, PipelineCompilationOptions, PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, StoreOp, SurfaceConfiguration, VertexState};
 use winit::window::Window;
 
-use crate::{shader_config::ShaderConfig, vertex::Vertex};
+use crate::{cube::cube_mesh, mesh::Mesh, shader_config::ShaderConfig, vertex::Vertex};
 
 pub struct WGPUState {
     window: Arc<Window>,
@@ -13,6 +13,8 @@ pub struct WGPUState {
     queue: wgpu::Queue,
     pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
+    meshes: Vec<Mesh<'static>>,
+    mesh_updated: bool,
 }
 
 
@@ -20,9 +22,6 @@ const VERTICES: &[Vertex] = &[
     Vertex { position: [ 0.0,  0.5, 0.0], color: [1.0, 0.0, 0.0] }, // Arriba (Rojo)
     Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] }, // Izquierda (Verde)
     Vertex { position: [ 0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] }, // Derecha (Azul)
-    Vertex { position: [ 0.0, -0.8, 0.0], color: [0.0, 0.0, 1.0] }, // Derecha (Azul)
-    Vertex { position: [ 0.5, -0.9, 0.0], color: [0.0, 0.0, 1.0] }, // Derecha (Azul)
-    Vertex { position: [ 0.5, 0.8, 0.0], color: [0.0, 0.0, 1.0] }, // Derecha (Azul)
 ];
 
 
@@ -83,6 +82,8 @@ impl WGPUState {
             queue,
             pipeline,
             vertex_buffer,
+            meshes: Vec::new(),
+            mesh_updated: false,
         }
     }
 
@@ -139,6 +140,15 @@ impl WGPUState {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+
+        self.meshes.push(cube_mesh());
+        self.mesh_updated = true;
+
+        if self.mesh_updated {
+            self.mesh_updated = false;
+            self.update_vertex_buffer();
+        }
+
         // 1. Obtener la textura actual (frame)
         let output = self.surface.get_current_texture()?;
         // 2. Crear la vista de la textura
@@ -167,7 +177,7 @@ impl WGPUState {
 
             render_pass.set_pipeline(&self.pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..6, 0..1);
+            render_pass.draw(0..(self.vertex_buffer.size() / (4*6)) as u32, 0..1);
         }
         
         // 5. Enviar los comandos a la GPU y presentar el frame
@@ -185,6 +195,27 @@ impl WGPUState {
         });
 
         vertex_buffer
+    }
+
+    fn update_vertex_buffer(& mut self)
+    {
+        let mut all_vertices = Vec::new();
+        let mut offsets = Vec::new();
+        let mut index_offset = 0;
+
+        for mesh in &self.meshes {
+            offsets.push(index_offset);
+            all_vertices.extend_from_slice(&mesh.vertices());
+            index_offset += mesh.vertices().len() as u32;
+        }
+
+        let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&all_vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        self.vertex_buffer = vertex_buffer;        
     }
 
     

@@ -6,6 +6,7 @@ mod app;
 mod shader_config;
 mod mesh;
 mod vertex;
+mod cube;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();

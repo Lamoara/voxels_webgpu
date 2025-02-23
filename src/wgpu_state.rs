@@ -18,13 +18,6 @@ pub struct WGPUState {
 }
 
 
-const VERTICES: &[Vertex] = &[
-    Vertex { position: [ 0.0,  0.5, 0.0], color: [1.0, 0.0, 0.0] }, // Arriba (Rojo)
-    Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] }, // Izquierda (Verde)
-    Vertex { position: [ 0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] }, // Derecha (Azul)
-];
-
-
 impl WGPUState {
     pub fn new(window_arc: Arc<Window>) -> Self {
         let size = window_arc.inner_size();
@@ -72,7 +65,7 @@ impl WGPUState {
         };
 
         let pipeline = Self::create_pipeline(&device, &surface_config, &vertex_config, &fragment_config);
-        let vertex_buffer = Self::create_vertex_buffer(&device, &queue);
+        let vertex_buffer = Self::create_vertex_buffer(&device, &queue, &Vec::new());
 
         Self {
             window: window_arc,
@@ -187,17 +180,25 @@ impl WGPUState {
         Ok(())
     }
 
-    fn create_vertex_buffer(device: &Device, queue: &Queue) -> Buffer {
+    fn create_vertex_buffer(device: &Device, queue: &Queue, meshes: &Vec<Mesh>) -> Buffer {
+
+        let mut total_vertices: Vec<Vertex> = Vec::new();
+
+        for mesh in meshes
+        {
+            total_vertices.append(mesh.vertices().to_vec().clone().as_mut());
+        }
+
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(total_vertices.as_slice()),
             usage: BufferUsages::VERTEX,
         });
 
         vertex_buffer
     }
 
-    fn update_vertex_buffer(& mut self)
+    fn update_vertex_buffer(&mut self)
     {
         let mut all_vertices = Vec::new();
         let mut offsets = Vec::new();

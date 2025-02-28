@@ -5,6 +5,7 @@ mod wgpu_state;
 mod app;
 mod shader_config;
 mod vertex;
+mod uniform;
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();

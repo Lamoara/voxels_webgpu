@@ -1,7 +1,35 @@
+fn modf(a: f32, b: f32) -> f32 {
+    return a - b * floor(a / b);
+}
+
+fn sdBox(p: vec3<f32>, b: vec3<f32>) -> f32 {
+    let q = abs(p) - b;  
+    return length(max(q, vec3f(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+fn smin(a: f32, b: f32, k: f32) -> f32 {
+    let h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+fn sminExp(a: f32, b: f32, k: f32) -> f32 {
+    let res = exp(-k * a) + exp(-k * b);
+    return -log(res) / k;
+}
+
+fn sminQuadratic(a: f32, b: f32, k: f32) -> f32 {
+    let h = max(k - abs(a - b), 0.0) / k;
+    return min(a, b) - h * h * k * (1.0 / 4.0);
+}
+
+
 fn map(p: vec3<f32>) -> f32 {
-    let sphere = length(p) - 1.0;
-    let floor = abs(p.y - 1.2);
-    return min(sphere, floor);
+    var np = p;
+
+    let sphere = length(np) - 1.0;
+    let floor = abs(np.y - 1.2);
+    let box = sdBox(np + vec3f(cos(uniforms.time) * 2.5, 0.0, 0.0), vec3f(0.75));
+    return sminQuadratic(sphere, sminQuadratic(floor, box, 0.8), 0.8);
 }
 
 // Aproximación de la normal usando diferencias finitas
@@ -26,6 +54,13 @@ fn calcAO(p: vec3<f32>, n: vec3<f32>) -> f32 {
     }
     return clamp(1.0 - occlusion, 0.0, 1.0);
 }
+
+struct Uniforms {
+    time: f32,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
 
 @fragment
 fn main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
@@ -75,7 +110,7 @@ fn main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
     let lighting = directLight + ambientLight;
     
     // Color final (puedes combinar con otros términos, por ejemplo, basados en t)
-    let col = vec3f(lighting * 1.0 + t * 0.0);
+    let col = vec3f(lighting);
     return vec4<f32>(col, 1.0);
 }
 
